@@ -1,0 +1,1348 @@
+openapi: 3.0.3
+info:
+  title: Audio2Score API - Contrato del equipo
+  version: 1.0.0
+  description: Especificación OpenAPI consolidada a partir de las propuestas de Adrián, Daniel e Iván. Trazabilidad
+    funcional basada en SRS_equipo_corregido_final.md. Las operaciones protegidas requieren JWT Bearer; las excepciones
+    se indican por operación.
+servers:
+- url: https://api.audio2score.example.com/v1
+  description: Entorno de producción (prototipo)
+- url: http://localhost:3000/v1
+  description: Entorno local de desarrollo
+tags:
+- name: Auth
+  description: Registro y gestión de sesión.
+- name: Projects
+  description: Gestión y consulta de proyectos.
+- name: AudioFiles
+  description: Carga y validación de audio.
+- name: Processing
+  description: Configuración, estado e historial de intentos.
+- name: Transcriptions
+  description: Consulta, revisión, comparación e historial de transcripciones.
+- name: Exports
+  description: Generación y descarga de MIDI y PDF.
+security:
+- bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags:
+      - Auth
+      summary: Registrar una cuenta
+      x-acceptance-criteria:
+      - RF-01-AC-1
+      responses:
+        '201':
+          description: Cuenta creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '409':
+          description: El correo ya está registrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      security: []
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags:
+      - Auth
+      summary: Iniciar sesión y emitir el token de acceso
+      x-acceptance-criteria:
+      - RF-01-AC-2
+      - RF-01-AC-3
+      responses:
+        '200':
+          description: Autenticación exitosa.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '401':
+          description: Credenciales inválidas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      security: []
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags:
+      - Auth
+      summary: Cerrar e invalidar la sesión activa
+      x-acceptance-criteria:
+      - RF-01-AC-4
+      responses:
+        '204':
+          description: Sesión invalidada.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /auth/me:
+    get:
+      operationId: getCurrentUser
+      tags:
+      - Auth
+      summary: Consultar el perfil autenticado
+      x-acceptance-criteria:
+      - RF-01-AC-2
+      responses:
+        '200':
+          description: Perfil del usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects:
+    get:
+      operationId: listProjects
+      tags:
+      - Projects
+      summary: Listar proyectos propios
+      x-acceptance-criteria:
+      - RF-02-AC-2
+      - RF-13-AC-1
+      responses:
+        '200':
+          description: Proyectos propios con metadatos básicos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      parameters:
+      - $ref: '#/components/parameters/IncludeArchived'
+    post:
+      operationId: createProject
+      tags:
+      - Projects
+      summary: Crear un proyecto asociado al usuario autenticado
+      x-acceptance-criteria:
+      - RF-02-AC-1
+      - RF-02-AC-3
+      responses:
+        '201':
+          description: Proyecto creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreateRequest'
+  /projects/{projectId}:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getProject
+      tags:
+      - Projects
+      summary: Consultar detalle y estado del proyecto
+      x-acceptance-criteria:
+      - RF-13-AC-1
+      - RF-06-AC-1
+      - RF-06-AC-2
+      responses:
+        '200':
+          description: Detalle, metadatos y estado del proyecto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateProject
+      tags:
+      - Projects
+      summary: Actualizar parcialmente, renombrar, archivar o restaurar un proyecto
+      x-acceptance-criteria:
+      - RF-13-AC-3
+      - RF-15-AC-2
+      responses:
+        '200':
+          description: Proyecto actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdateRequest'
+    delete:
+      operationId: deleteProject
+      tags:
+      - Projects
+      summary: Eliminar permanentemente el proyecto, su audio y sus resultados
+      x-acceptance-criteria:
+      - RF-15-AC-1
+      responses:
+        '204':
+          description: Proyecto y datos asociados eliminados.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/audio-files:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: uploadAudioFile
+      tags:
+      - AudioFiles
+      summary: Cargar y validar el archivo de audio único del proyecto
+      x-acceptance-criteria:
+      - RF-02-AC-4
+      - RF-03-AC-1
+      - RF-03-AC-2
+      - RF-03-AC-3
+      - RF-04-AC-1
+      - RF-04-AC-2
+      - RF-04-AC-3
+      - RF-05-AC-1
+      - RF-05-AC-2
+      - RF-05-AC-3
+      responses:
+        '202':
+          description: Audio aceptado. El procesamiento inicia automáticamente al finalizar la validación si no
+            falta configuración; de lo contrario se informa la configuración pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioUploadResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AudioFileUploadRequest'
+        description: La aceptación del audio no implica procesamiento inmediato si aún se requieren parámetros obligatorios.
+  /projects/{projectId}/audio-files/{audioFileId}:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    - $ref: '#/components/parameters/AudioFileId'
+    get:
+      operationId: getAudioFile
+      tags:
+      - AudioFiles
+      summary: Consultar metadatos del audio del proyecto
+      x-acceptance-criteria:
+      - RF-03-AC-1
+      responses:
+        '200':
+          description: Metadatos del audio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioFile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/processing-configurations/current:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    put:
+      operationId: completeProcessingConfiguration
+      tags:
+      - Processing
+      summary: Completar configuración pendiente y permitir el inicio automático del procesamiento
+      x-acceptance-criteria:
+      - RF-05-AC-1
+      - RF-05-AC-2
+      - RF-05-AC-3
+      responses:
+        '202':
+          description: Configuración aceptada; procesamiento encolado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingAttempt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProcessingConfigurationRequest'
+      description: Se usa únicamente cuando la respuesta de carga indica parámetros obligatorios pendientes.
+  /projects/{projectId}/processing-attempts:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: listProcessingAttempts
+      tags:
+      - Processing
+      summary: Consultar el historial de intentos sin sobrescribir resultados previos
+      x-acceptance-criteria:
+      - RF-13-AC-2
+      - RF-06-AC-1
+      - RF-06-AC-2
+      responses:
+        '200':
+          description: Historial de intentos del proyecto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingAttemptList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/processing-attempts/{attemptId}:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    - $ref: '#/components/parameters/AttemptId'
+    get:
+      operationId: getProcessingAttempt
+      tags:
+      - Processing
+      summary: Consultar estado y resultado de un intento
+      x-acceptance-criteria:
+      - RF-06-AC-1
+      - RF-06-AC-2
+      - RF-14-AC-1
+      responses:
+        '200':
+          description: Estado, resultado o motivo de fallo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingAttempt'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/processing-attempts/{attemptId}/retry:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    - $ref: '#/components/parameters/AttemptId'
+    post:
+      operationId: retryProcessingAttempt
+      tags:
+      - Processing
+      summary: Crear un nuevo intento después de un fallo
+      x-acceptance-criteria:
+      - RF-14-AC-1
+      - RF-14-AC-2
+      responses:
+        '202':
+          description: Nuevo intento aceptado para procesamiento asíncrono.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingAttempt'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetryProcessingRequest'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+  /projects/{projectId}/transcriptions/current:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getCurrentTranscription
+      tags:
+      - Transcriptions
+      summary: Consultar la transcripción vigente con partitura, audio y resumen
+      x-acceptance-criteria:
+      - RF-07-AC-1
+      - RF-07-AC-2
+      - RF-07-AC-3
+      - RF-08-AC-1
+      - RF-08-AC-2
+      - RF-09-AC-2
+      - RF-10-AC-1
+      - RF-10-AC-2
+      - RF-16-AC-1
+      - RF-16-AC-2
+      responses:
+        '200':
+          description: Versión vigente con notas, baja confianza, referencia segura al audio y resumen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transcription'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/transcriptions/current/revisions:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: createTranscriptionRevision
+      tags:
+      - Transcriptions
+      summary: Guardar las correcciones como una nueva versión vigente
+      x-acceptance-criteria:
+      - RF-09-AC-1
+      - RF-09-AC-2
+      responses:
+        '201':
+          description: Revisión inmutable creada y marcada como vigente.
+          headers:
+            ETag:
+              description: ETag de la revisión creada.
+              schema:
+                type: string
+            Location:
+              description: URI de la revisión creada.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transcription'
+        '412':
+          description: El ETag enviado en If-Match no coincide con la versión vigente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranscriptionUpdateRequest'
+      description: Crea una versión inmutable; requiere If-Match con el ETag obtenido al consultar la versión vigente.
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+  /projects/{projectId}/transcriptions/versions:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: listTranscriptionVersions
+      tags:
+      - Transcriptions
+      summary: Consultar las versiones anteriores de la transcripción
+      x-acceptance-criteria:
+      - RF-13-AC-2
+      - RF-09-AC-2
+      responses:
+        '200':
+          description: Versiones previas y vigente de la transcripción.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptionVersionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/exports:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    post:
+      operationId: createExport
+      tags:
+      - Exports
+      summary: Generar una exportación MIDI o PDF de la versión vigente
+      x-acceptance-criteria:
+      - RF-11-AC-1
+      - RF-11-AC-2
+      - RF-12-AC-1
+      - RF-12-AC-2
+      responses:
+        '201':
+          description: Exportación creada; contiene estado y enlace de descarga cuando esté listo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Export'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExportRequest'
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+    get:
+      operationId: listExports
+      tags:
+      - Exports
+      summary: Listar exportaciones generadas para el proyecto
+      x-acceptance-criteria:
+      - RF-11-AC-1
+      - RF-12-AC-1
+      responses:
+        '200':
+          description: Exportaciones del proyecto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /projects/{projectId}/exports/{exportId}/file:
+    parameters:
+    - $ref: '#/components/parameters/ProjectId'
+    - $ref: '#/components/parameters/ExportId'
+    get:
+      operationId: downloadExport
+      tags:
+      - Exports
+      summary: Descargar el archivo MIDI o PDF generado
+      x-acceptance-criteria:
+      - RF-11-AC-1
+      - RF-11-AC-2
+      - RF-12-AC-1
+      - RF-12-AC-2
+      responses:
+        '200':
+          description: Archivo de exportación.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            audio/midi:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtenido en `/auth/login`. Requerido en todas las operaciones salvo registro y login.
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AudioFileId:
+      name: audioFileId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IncludeArchived:
+      name: includeArchived
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+    AttemptId:
+      name: attemptId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ExportId:
+      name: exportId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: ETag de la versión leída; evita sobrescribir cambios concurrentes.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 255
+      description: Cuando se envía, evita duplicar la misma solicitud reenviada.
+  responses:
+    BadRequest:
+      description: Solicitud mal formada.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Autenticación ausente, inválida o expirada.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: El usuario autenticado no tiene permiso para esta operación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Recurso inexistente o no accesible.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnprocessableEntity:
+      description: La solicitud incumple una regla de validación.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    InternalError:
+      description: Error interno inesperado.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: La operación entra en conflicto con el estado actual del recurso.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: El archivo excede el máximo de 100 MB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Solo se aceptan archivos MP3 o WAV.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Servicio temporalmente no disponible; puede reintentarse más tarde.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          example: RESOURCE_NOT_FOUND
+        message:
+          type: string
+        requestId:
+          type: string
+    ValidationError:
+      allOf:
+      - $ref: '#/components/schemas/Error'
+      - type: object
+        properties:
+          details:
+            type: array
+            items:
+              type: object
+              required:
+              - field
+              - message
+              properties:
+                field:
+                  type: string
+                message:
+                  type: string
+    User:
+      type: object
+      required:
+      - id
+      - email
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 15
+          maxLength: 128
+          description: Se recomienda MFA para elevar la seguridad de la cuenta.
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    AuthToken:
+      type: object
+      required:
+      - accessToken
+      - tokenType
+      - expiresIn
+      - user
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Segundos hasta la expiración del token.
+          example: 3600
+        user:
+          $ref: '#/components/schemas/User'
+    ProjectStatus:
+      type: string
+      enum:
+      - pendiente
+      - procesando
+      - completado
+      - fallido
+    Project:
+      type: object
+      required:
+      - id
+      - ownerId
+      - name
+      - status
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          $ref: '#/components/schemas/ProjectStatus'
+        audioFileId:
+          type: string
+          format: uuid
+          nullable: true
+        currentTranscriptionId:
+          type: string
+          format: uuid
+          nullable: true
+        failureReason:
+          type: string
+          nullable: true
+          description: Motivo del fallo, presente únicamente cuando `status` es `fallido`.
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        description:
+          type: string
+          nullable: true
+          maxLength: 1000
+    ProjectCreateRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+    ProjectUpdateRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          maxLength: 1000
+          nullable: true
+        archived:
+          type: boolean
+          description: true archiva el proyecto; false lo restaura.
+    AudioFileUploadRequest:
+      type: object
+      required:
+      - file
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Archivo MP3 o WAV, máximo 100 MiB (104857600 bytes) y 15 minutos de duración.
+    AudioFileFormat:
+      type: string
+      enum:
+      - MP3
+      - WAV
+    AudioFileStatus:
+      type: string
+      enum:
+      - aceptado
+      - rechazado
+    AudioFile:
+      type: object
+      required:
+      - id
+      - projectId
+      - originalFilename
+      - format
+      - sizeBytes
+      - status
+      - uploadedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        originalFilename:
+          type: string
+        format:
+          $ref: '#/components/schemas/AudioFileFormat'
+        sizeBytes:
+          type: integer
+        durationSeconds:
+          type: number
+          nullable: true
+        status:
+          $ref: '#/components/schemas/AudioFileStatus'
+        rejectionReason:
+          type: string
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+    MusicalNote:
+      type: object
+      required:
+      - pitch
+      - startTimeSeconds
+      - durationSeconds
+      - isEstimated
+      - isLowConfidence
+      properties:
+        pitch:
+          type: string
+          pattern: '^[A-G](##?|bb?)?(-1|[0-9])$'
+          example: C4
+        startTimeSeconds:
+          type: number
+        durationSeconds:
+          type: number
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          nullable: true
+        isEstimated:
+          type: boolean
+          description: Verdadero cuando el sistema no pudo determinar el valor con certeza.
+        isLowConfidence:
+          type: boolean
+    Transcription:
+      type: object
+      description: 'Inmutable una vez creada: RF-09 y RF-13-AC-2 se implementan generando una nueva versión (`version`
+        incremental) en lugar de sobrescribir una existente; `Project.currentTranscriptionId` apunta a la versión
+        vigente.
+
+        '
+      required:
+      - id
+      - projectId
+      - version
+      - notes
+      - isDraft
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicalNote'
+        tempoEstimated:
+          type: number
+          nullable: true
+        keyEstimated:
+          type: string
+          nullable: true
+        isDraft:
+          type: boolean
+          description: Indica que la transcripción es un borrador sujeto a revisión humana.
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        audioFileUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL temporal y autorizada para reproducir el audio del proyecto.
+        summary:
+          $ref: '#/components/schemas/TranscriptionSummary'
+        lowConfidenceSegments:
+          type: array
+          items:
+            $ref: '#/components/schemas/LowConfidenceSegment'
+        processingAttemptId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Intento que generó esta versión automática, cuando aplica.
+    TranscriptionUpdateRequest:
+      type: object
+      required:
+      - notes
+      properties:
+        notes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MusicalNote'
+    LowConfidenceSegment:
+      type: object
+      required:
+      - noteIndex
+      - reason
+      properties:
+        noteIndex:
+          type: integer
+        reason:
+          type: string
+          example: Superposición de voces detectada.
+    TranscriptionSummary:
+      type: object
+      required:
+      - notesCount
+      - estimatedFields
+      properties:
+        notesCount:
+          type: integer
+        coverageEstimatedPercent:
+          type: number
+          nullable: true
+        tempoEstimated:
+          type: number
+          nullable: true
+        keyEstimated:
+          type: string
+          nullable: true
+        estimatedFields:
+          type: array
+          description: Campos del resumen marcados explícitamente como estimación.
+          items:
+            type: string
+            enum:
+            - coverageEstimatedPercent
+            - tempoEstimated
+            - keyEstimated
+    ProcessingAttemptStatus:
+      type: string
+      enum:
+      - pendiente
+      - procesando
+      - completado
+      - fallido
+    ProcessingAttempt:
+      type: object
+      required:
+      - id
+      - projectId
+      - status
+      - startedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ProcessingAttemptStatus'
+        transcriptionId:
+          type: string
+          format: uuid
+          nullable: true
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+          description: Motivo del fallo, cuando el intento termina fallido.
+        attemptNumber:
+          type: integer
+          description: Número de intento dentro del proyecto (1 para el primer procesamiento, se incrementa en cada
+            reintento de RF-14).
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        configuration:
+          type: object
+          additionalProperties: true
+          description: Configuración efectiva, si aplica.
+    AudioUploadResult:
+      type: object
+      required:
+      - audioFile
+      - projectStatus
+      - processingStarted
+      properties:
+        audioFile:
+          $ref: '#/components/schemas/AudioFile'
+        projectStatus:
+          $ref: '#/components/schemas/ProjectStatus'
+        processingStarted:
+          type: boolean
+          description: true si el procesamiento comenzó automáticamente al terminar la validación.
+        requiredConfiguration:
+          type: array
+          items:
+            type: string
+          description: Parámetros requeridos pendientes; si contiene valores, el procesamiento no inicia todavía.
+        attempt:
+          $ref: '#/components/schemas/ProcessingAttempt'
+    ProcessingConfigurationRequest:
+      type: object
+      description: Parámetros obligatorios pendientes identificados por el motor de procesamiento.
+      additionalProperties: true
+    RetryProcessingRequest:
+      type: object
+      properties:
+        configuration:
+          type: object
+          additionalProperties: true
+          description: Configuración alternativa o sensible para el nuevo intento, cuando aplique.
+    TranscriptionVersionList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transcription'
+    ProcessingAttemptList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessingAttempt'
+    CreateExportRequest:
+      type: object
+      required:
+      - format
+      properties:
+        format:
+          type: string
+          enum:
+          - midi
+          - pdf
+    Export:
+      type: object
+      required:
+      - id
+      - projectId
+      - format
+      - status
+      - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        transcriptionId:
+          type: string
+          format: uuid
+          nullable: true
+        format:
+          type: string
+          enum:
+          - midi
+          - pdf
+        status:
+          type: string
+          enum:
+          - pendiente
+          - generando
+          - listo
+          - fallido
+        createdAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+          format: uri
+          nullable: true
+        fileName:
+          type: string
+          nullable: true
+        draftNotice:
+          type: string
+          nullable: true
+    ExportList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Export'
+    ProjectList:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'

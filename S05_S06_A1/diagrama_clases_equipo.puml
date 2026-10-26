@@ -1,0 +1,294 @@
+@startuml diagrama_clases_equipo
+title Audio2Score — Modelo de clases consolidado
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+skinparam packageStyle rectangle
+hide empty methods
+top to bottom direction
+
+package "Solicitudes de API (OpenAPI)" {
+  class RegisterRequest <<request>> {
+    +email: String
+    +password: String
+  }
+  class LoginRequest <<request>> {
+    +email: String
+    +password: String
+  }
+  class ProjectCreateRequest <<request>> {
+    +name: String
+    +description: String [0..1]
+  }
+  class ProjectUpdateRequest <<request>> {
+    +name: String [0..1]
+    +description: String [0..1]
+    +archived: Boolean [0..1]
+  }
+  class AudioFileUploadRequest <<request>> {
+    +file: Binary
+  }
+  class ProcessingConfigurationRequest <<request>> {
+    +additionalProperties: Map<String, Any>
+  }
+  class RetryProcessingRequest <<request>> {
+    +configuration: Map<String, Any> [0..1]
+  }
+  class TranscriptionUpdateRequest <<request>> {
+    +notes: List<MusicalNote>
+  }
+  class CreateExportRequest <<request>> {
+    +format: ExportFormat
+  }
+}
+
+package "Respuestas de API y entidades del dominio" {
+  class User <<response, entity>> {
+    +id: UUID
+    +email: String
+    +createdAt: DateTime
+    .. dato interno, no se expone en User response ..
+    -passwordHash: String
+  }
+  class AuthToken <<response>> {
+    +accessToken: String
+    +tokenType: String
+    +expiresIn: Integer
+    +user: User
+  }
+  class Project <<response, entity>> {
+    +id: UUID
+    +ownerId: UUID
+    +name: String
+    +description: String [0..1]
+    +status: ProjectStatus
+    +audioFileId: UUID [0..1]
+    +currentTranscriptionId: UUID [0..1]
+    +failureReason: String [0..1]
+    +archivedAt: DateTime [0..1]
+    +createdAt: DateTime
+    +updatedAt: DateTime
+  }
+  class AudioFile <<response, entity>> {
+    +id: UUID
+    +projectId: UUID
+    +originalFilename: String
+    +format: AudioFileFormat
+    +sizeBytes: Integer
+    +durationSeconds: Number [0..1]
+    +status: AudioFileStatus
+    +rejectionReason: String [0..1]
+    +uploadedAt: DateTime
+    .. persistencia interna; no se expone en API ..
+    -storageKey: String [0..1]
+  }
+  class AudioUploadResult <<response>> {
+    +audioFile: AudioFile
+    +projectStatus: ProjectStatus
+    +processingStarted: Boolean
+    +requiredConfiguration: List<String> [0..1]
+    +attempt: ProcessingAttempt [0..1]
+  }
+  class ProcessingAttempt <<response, entity>> {
+    +id: UUID
+    +projectId: UUID
+    +status: ProcessingAttemptStatus
+    +transcriptionId: UUID [0..1]
+    +errorMessage: String [0..1]
+    +attemptNumber: Integer
+    +startedAt: DateTime
+    +finishedAt: DateTime [0..1]
+    +configuration: Map<String, Any> [0..1]
+    .. control técnico del worker; no se expone en API ..
+    -processingStartedAt: DateTime [0..1]
+    -heartbeatAt: DateTime [0..1]
+    -leaseExpiresAt: DateTime [0..1]
+    -idempotencyKey: String [0..1]
+  }
+  class ProcessingAttemptList <<response>> {
+    +items: List<ProcessingAttempt>
+  }
+  class Transcription <<response, entity>> {
+    +id: UUID
+    +projectId: UUID
+    +processingAttemptId: UUID [0..1]
+    +version: Integer
+    +notes: List<MusicalNote>
+    +tempoEstimated: Number [0..1]
+    +keyEstimated: String [0..1]
+    +isDraft: Boolean
+    +createdAt: DateTime
+    +updatedAt: DateTime [0..1]
+    +audioFileUrl: URI [0..1]
+    +summary: TranscriptionSummary [0..1]
+    +lowConfidenceSegments: List<LowConfidenceSegment> [0..1]
+    .. persistencia interna; no se expone en API ..
+    -lowConfidenceThreshold: Number [0..1]
+  }
+  class TranscriptionVersionList <<response>> {
+    +items: List<Transcription>
+  }
+  class MusicalNote <<schema>> {
+    +pitch: String
+    +startTimeSeconds: Number
+    +durationSeconds: Number
+    +confidence: Number [0..1]
+    +isEstimated: Boolean
+    +isLowConfidence: Boolean
+  }
+  class LowConfidenceSegment <<schema>> {
+    +noteIndex: Integer
+    +reason: String
+  }
+  class TranscriptionSummary <<schema>> {
+    +notesCount: Integer
+    +coverageEstimatedPercent: Number [0..1]
+    +tempoEstimated: Number [0..1]
+    +keyEstimated: String [0..1]
+    +estimatedFields: List<EstimatedField>
+  }
+  class ProjectList <<response>> {
+    +items: List<Project>
+  }
+  class Export <<response, entity>> {
+    +id: UUID
+    +projectId: UUID
+    +transcriptionId: UUID [0..1]
+    +format: ExportFormat
+    +status: ExportStatus
+    +createdAt: DateTime
+    +downloadUrl: URI [0..1]
+    +fileName: String [0..1]
+    +draftNotice: String [0..1]
+    .. persistencia interna; no se expone en API ..
+    -downloadKey: String [0..1]
+    -idempotencyKey: String [0..1]
+  }
+  class ExportList <<response>> {
+    +items: List<Export>
+  }
+  class Error <<response>> {
+    +code: String
+    +message: String
+    +requestId: String [0..1]
+  }
+  class ValidationError <<response>> {
+    +details: List<ValidationDetail> [0..1]
+  }
+  class ValidationDetail <<schema>> {
+    +field: String
+    +message: String
+  }
+  class ProjectStatus <<enumeration>> {
+    pendiente
+    procesando
+    completado
+    fallido
+  }
+  class ProcessingAttemptStatus <<enumeration>> {
+    pendiente
+    procesando
+    completado
+    fallido
+  }
+  class AudioFileFormat <<enumeration>> {
+    MP3
+    WAV
+  }
+  class AudioFileStatus <<enumeration>> {
+    aceptado
+    rechazado
+  }
+  class ExportFormat <<enumeration>> {
+    midi
+    pdf
+  }
+  class ExportStatus <<enumeration>> {
+    pendiente
+    generando
+    listo
+    fallido
+  }
+  class EstimatedField <<enumeration>> {
+    coverageEstimatedPercent
+    tempoEstimated
+    keyEstimated
+  }
+}
+
+package "Persistencia técnica (no expuesta en OpenAPI)" {
+  class RevokedToken <<entity>> {
+    +jti: String
+    +userId: UUID
+    +revokedAt: DateTime
+    +expiresAt: DateTime
+  }
+  class StorageDeletion <<entity>> {
+    +id: Integer
+    +objectKey: String
+    +requestedAt: DateTime
+    +deletedAt: DateTime [0..1]
+    +attempts: Integer
+    +lastError: String [0..1]
+  }
+  class OutboxMessage <<entity>> {
+    +id: UUID
+    +aggregateType: String
+    +aggregateId: UUID
+    +eventType: String
+    +payload: JSON
+    +createdAt: DateTime
+    +publishedAt: DateTime [0..1]
+    +attempts: Integer
+    +lastError: String [0..1]
+  }
+}
+
+User "1" -- "0..*" Project : ownerId / owns
+User "1" -- "0..*" RevokedToken : revoked sessions
+Project "1" *-- "0..1" AudioFile : audioFileId
+Project "1" *-- "0..*" ProcessingAttempt : attempts
+Project "1" *-- "0..*" Transcription : version history
+Project "1" --> "0..1" Transcription : currentTranscriptionId
+ProcessingAttempt "0..1" --> "0..1" Transcription : creates
+Transcription "1" *-- "0..*" MusicalNote : notes
+Transcription "1" *-- "0..1" TranscriptionSummary : summary
+Transcription "1" *-- "0..*" LowConfidenceSegment : review markers
+Transcription "1" -- "0..*" Export : exports
+AudioUploadResult --> AudioFile
+AudioUploadResult --> ProcessingAttempt
+AuthToken --> User
+ProjectList --> Project
+ProcessingAttemptList --> ProcessingAttempt
+TranscriptionVersionList --> Transcription
+ExportList --> Export
+ValidationError --|> Error
+ValidationError *-- "0..*" ValidationDetail
+RegisterRequest ..> User : creates account
+LoginRequest ..> AuthToken : authenticates
+ProjectCreateRequest ..> Project : creates
+ProjectUpdateRequest ..> Project : partial update
+AudioFileUploadRequest ..> AudioUploadResult : uploads / validates
+ProcessingConfigurationRequest ..> ProcessingAttempt : completes pending configuration
+RetryProcessingRequest ..> ProcessingAttempt : requests retry
+TranscriptionUpdateRequest ..> Transcription : creates immutable revision
+CreateExportRequest ..> Export : requests generation
+
+note right of Project
+  A project contains at most one audio file.
+  The corrected SRS fixes audio limits at MP3/WAV,
+  100 MiB (104857600 bytes) and 15 minutes.
+  Upload starts processing automatically only when
+  required configuration is complete.
+end note
+note right of Transcription
+  Each saved revision is a separate immutable version.
+  Project.currentTranscriptionId points to the current one.
+  Audio URL, summary and confidence markers are returned
+  for joint review.
+end note
+note bottom of User
+  passwordHash is internal persistence data only;
+  User response exposes id, email and createdAt.
+end note
+@enduml
