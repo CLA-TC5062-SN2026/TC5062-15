@@ -9,6 +9,7 @@ API REST de desarrollo para la Parte 2, generada a partir de `../openapi_equipo.
 - PostgreSQL embebido mediante PGlite 0.5 (para ejecutar el ejercicio sin instalar un servicio PostgreSQL)
 - Multer para cargas multipart
 - YAML para comprobar las operaciones declaradas en OpenAPI al arrancar
+- bcryptjs para hash de contraseñas y jsonwebtoken para emitir/verificar JWT
 
 La base queda persistida en `data/audio2score`. En un despliegue del equipo, PostgreSQL puede ejecutarse como servicio dedicado; esta implementación usa el mismo motor PostgreSQL embebido para desarrollo local. Al iniciar, importa `esquema_bd.sql` solo cuando la base está vacía y verifica las 13 tablas.
 
@@ -20,11 +21,13 @@ pnpm install
 pnpm start
 ```
 
-La consola debe indicar conexión PostgreSQL, 13 tablas verificadas y 21 operaciones OpenAPI registradas.
+La consola debe indicar conexión PostgreSQL, 13 tablas verificadas, 21 operaciones OpenAPI registradas y que JWT está activo.
 
-## Sin seguridad en esta actividad
+## Autenticación JWT
 
-Los endpoints no verifican JWT ni requieren autenticación/autorización, de acuerdo con el alcance de la actividad. `/auth/register` y `/auth/login` conservan sus rutas y formas de respuesta, pero el token devuelto es opaco de desarrollo y no protege los otros recursos. El propietario de desarrollo se inicializa desde `DEMO_OWNER_ID` y `DEMO_OWNER_EMAIL`.
+`POST /auth/register` crea usuarios con bcrypt y nunca devuelve el hash. `POST /auth/login` emite un JWT HS256 con expiración explícita; `GET /auth/me` exige `Authorization: Bearer <token>`. `POST /auth/logout` invalida el token mediante la tabla `revoked_tokens`. Las rutas del OpenAPI funcionan bajo `/v1`; se conservan las rutas raíz usadas por la colección anterior y se aceptan también `/api/auth/...` para coincidir con el enunciado de la actividad.
+
+Configura `JWT_SECRET` con al menos 32 bytes aleatorios y `JWT_EXPIRATION` con segundos (por ejemplo, `3600`). No compartas ni commitees `.env`; sí puedes commitear `.env.example`. El middleware protege todas las rutas declaradas con BearerAuth en el OpenAPI. Solo registro y login son públicos. Los proyectos y recursos asociados se consultan con el usuario propietario del JWT; el modelo no define roles.
 
 ## Trabajo asíncrono y límites
 
