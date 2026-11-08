@@ -1204,7 +1204,6 @@ components:
           type: string
           format: uuid
           nullable: true
-          nullable: true
         errorMessage:
           type: string
           nullable: true
