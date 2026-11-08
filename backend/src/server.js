@@ -3,6 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import { PGlite } from '@electric-sql/pglite';
 import YAML from 'yaml';
+import jwt from 'jsonwebtoken';
 import { parseFile } from 'music-metadata';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -20,6 +21,17 @@ const ownerId = process.env.DEMO_OWNER_ID ?? '00000000-0000-4000-8000-0000000000
 const ownerEmail = process.env.DEMO_OWNER_EMAIL ?? 'dev@audio2score.local';
 const maxUploadBytes = Number(process.env.MAX_UPLOAD_BYTES ?? 104857600);
 const port = Number(process.env.PORT ?? 3000);
+
+const jwtSecret = process.env.JWT_SECRET;
+const jwtExpiration = Number(process.env.JWT_EXPIRATION ?? 3600);
+
+if (!jwtSecret || Buffer.byteLength(jwtSecret, 'utf8') < 32) {
+  throw new Error('JWT_SECRET debe tener al menos 32 bytes.');
+}
+
+if (!Number.isInteger(jwtExpiration) || jwtExpiration < 60) {
+  throw new Error('JWT_EXPIRATION debe ser un entero de al menos 60 segundos.');
+}
 await fs.mkdir(path.dirname(dbPath), { recursive: true });
 await fs.mkdir(uploadDir, { recursive: true });
 
@@ -92,10 +104,43 @@ async function initializeDatabase() {
   return actual.length;
 }
 
+const publicOperations = new Set([
+  'POST /auth/register',
+  'POST /auth/login',
+]);
+
+function authenticateRequest(req, _res, next) {
+  const authorization = req.get('authorization');
+  const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+
+  if (!token) {
+    next(new HttpError(401, 'UNAUTHORIZED', 'Se requiere un token Bearer válido.'));
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, jwtSecret);
+
+    if (typeof payload === 'string' || typeof payload.sub !== 'string') {
+      throw new Error('INVALID_TOKEN_PAYLOAD');
+    }
+
+    req.authenticatedUserId = payload.sub;
+    next();
+  } catch {
+    next(new HttpError(401, 'INVALID_TOKEN', 'El token es inválido o ha expirado.'));
+  }
+}
+
 function register(method, routePath, successStatus, ...handlers) {
-  app[method](routePath, ...handlers);
-  registeredOperations.add(operationKey(method, routePath));
-  successResponses.set(operationKey(method, routePath), String(successStatus));
+  const key = operationKey(method, routePath);
+  const routeHandlers = publicOperations.has(key)
+    ? handlers
+    : [authenticateRequest, ...handlers];
+
+  app[method](routePath, ...routeHandlers);
+  registeredOperations.add(key);
+  successResponses.set(key, String(successStatus));
 }
 
 function verifyOpenApiContract() {
@@ -288,15 +333,31 @@ register('post', '/auth/login', 200, asyncHandler(async (req, res) => {
   if (typeof email !== 'string' || typeof password !== 'string') fail(400, 'INVALID_BODY', 'email y password son obligatorios.');
   const user = await one('SELECT id, email, password_hash, created_at FROM users WHERE lower(email) = lower($1)', [email]);
   if (!user || !passwordMatches(password, user.password_hash)) fail(401, 'INVALID_CREDENTIALS', 'Correo o contraseña incorrectos.');
-  // Token opaco solo para satisfacer la forma de respuesta local. No se valida en ninguna ruta.
-  res.json({ accessToken: crypto.randomBytes(24).toString('base64url'), tokenType: 'Bearer', expiresIn: 3600,
-    user: { id: user.id, email: user.email, createdAt: user.created_at } });
+     const accessToken = jwt.sign(
+    { sub: user.id, email: user.email },
+    jwtSecret,
+    { expiresIn: jwtExpiration },
+  );
+
+  res.json({
+    accessToken,
+    tokenType: 'Bearer',
+    expiresIn: jwtExpiration,
+    user: { id: user.id, email: user.email, createdAt: user.created_at },
+  });
 }));
 
 register('post', '/auth/logout', 204, (_req, res) => res.status(204).end());
-register('get', '/auth/me', 200, asyncHandler(async (_req, res) => {
-  const user = await one('SELECT id, email, created_at FROM users WHERE id = $1', [ownerId]);
-  if (!user) fail(404, 'USER_NOT_FOUND', 'No se encontró el usuario de desarrollo.');
+register('get', '/auth/me', 200, asyncHandler(async (req, res) => {
+  const user = await one(
+    'SELECT id, email, created_at FROM users WHERE id = $1',
+    [req.authenticatedUserId],
+  );
+
+  if (!user) {
+    fail(404, 'USER_NOT_FOUND', 'No se encontró el usuario autenticado.');
+  }
+
   res.json({ id: user.id, email: user.email, createdAt: user.created_at });
 }));
 
@@ -598,6 +659,7 @@ async function main() {
   app.listen(port, () => {
     console.log(`Audio2Score CRUD API escuchando en http://localhost:${port}`);
     console.log(`PostgreSQL conectado; ${tableCount} tablas verificadas; ${routeCount} operaciones OpenAPI registradas.`);
+    console.log('JWT activo; las rutas protegidas requieren Authorization: Bearer <token>.');
     console.log('Modo local sin JWT ni middleware de autenticación/autorización.');
   });
 }

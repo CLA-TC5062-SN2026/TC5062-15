@@ -1,0 +1,140 @@
+.page {
+  min-height: 100vh;
+  padding: clamp(1.5rem, 4vw, 4rem);
+  color: #e2e8f0;
+  background: #0f172a;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  max-width: 70rem;
+  margin: 0 auto 2rem;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #93c5fd;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0.35rem;
+  color: #f8fafc;
+}
+
+.user {
+  margin: 0;
+  color: #94a3b8;
+}
+
+button {
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #0f172a;
+  font-weight: 700;
+  cursor: pointer;
+  background: #93c5fd;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.loading,
+.empty,
+.error {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #172554;
+}
+
+.empty {
+  background: #1e293b;
+}
+
+.error {
+  color: #fecaca;
+  background: #7f1d1d;
+}
+
+.error p {
+  margin-bottom: 1rem;
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0.2rem solid rgb(255 255 255 / 30%);
+  border-top-color: #f8fafc;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+  max-width: 70rem;
+  margin: 0 auto;
+}
+
+.projectCard {
+  padding: 1.25rem;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+  background: #1e293b;
+}
+
+.status {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  color: #bfdbfe;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  background: #1e3a8a;
+}
+
+.projectCard h2 {
+  color: #f8fafc;
+}
+
+.projectCard small {
+  color: #94a3b8;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 38rem) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
