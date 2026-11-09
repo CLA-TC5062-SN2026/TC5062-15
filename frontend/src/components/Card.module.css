@@ -1,0 +1,36 @@
+.card {
+  min-width: 0;
+  padding: clamp(18px, 2vw, 23px);
+  border: 1px solid #77839a;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgb(25 44 79 / 4%);
+}
+
+.title {
+  margin: 0;
+  color: #17233f;
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+
+.description {
+  margin: 7px 0 0;
+  color: #59677f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.footer {
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid #edf0f5;
+}
+
+@media (max-width: 520px) {
+  .card {
+    width: 100%;
+    padding: 17px;
+    border-radius: 15px;
+  }
+}

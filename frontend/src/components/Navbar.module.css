@@ -1,0 +1,159 @@
+.navbar {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.items {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  min-height: 43px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-radius: 11px;
+  color: #9cacca;
+  font-size: 12px;
+  font-weight: 650;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.link:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 6%);
+}
+
+.link:focus-visible {
+  outline: 2px solid #c0ef9d;
+  outline-offset: 2px;
+}
+
+.active {
+  color: #fff;
+  background: rgb(255 255 255 / 10%);
+}
+
+.icon {
+  width: 18px;
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 14px 4px 3px;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.identity {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #233554;
+  background: #d8e2f3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.accountText {
+  min-width: 0;
+}
+
+.accountText strong,
+.accountText small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountText strong {
+  color: #dbe5fb;
+  font-size: 11px;
+}
+
+.accountText small {
+  margin-top: 4px;
+  color: #98a8c9;
+  font-size: 9px;
+}
+
+.authButton {
+  min-height: 32px;
+  padding-inline: 9px;
+  font-size: 10px;
+}
+
+@media (max-width: 740px) {
+  .navbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .items {
+    display: flex;
+    min-width: 0;
+    grid-column: 1 / -1;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .items li {
+    flex: 0 0 auto;
+  }
+
+  .link {
+    min-height: 38px;
+    white-space: nowrap;
+  }
+
+  .account {
+    grid-column: 1 / -1;
+    margin-top: 0;
+    padding: 10px 0 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .account {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .authButton {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+}
