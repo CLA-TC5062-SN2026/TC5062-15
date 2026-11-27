@@ -108,6 +108,16 @@
   margin: 42px 0 28px;
 }
 
+.headingActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.createFormCard {
+  margin-bottom: 18px;
+}
+
 .eyebrow,
 .sectionEyebrow {
   margin: 0;
@@ -187,6 +197,12 @@
   letter-spacing: -0.04em;
 }
 
+.resultsHeader .archiveScope {
+  margin: 6px 0 0;
+  color: #71809a;
+  font-size: 11px;
+}
+
 .projectGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -222,6 +238,7 @@
 .procesando { color: #315587; background: #e8f0ff; }
 .completado { color: #286541; background: #e5f5e9; }
 .fallido { color: #8a342d; background: #ffebe8; }
+.archived { color: #5d6472; background: #e9edf2; }
 
 .projectCard h3 {
   margin: 19px 0 6px;
@@ -230,6 +247,59 @@
 }
 
 .projectCard p { margin: 0; color: #71809a; font-size: 12px; }
+
+.projectCard .projectDescription {
+  min-height: 19px;
+  margin-top: 9px;
+  color: #59677f;
+  line-height: 1.5;
+}
+
+.projectCard .createdDate {
+  margin-top: 10px;
+}
+
+.cardActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid #edf0f5;
+}
+
+.deleteButton.deleteButton {
+  border-color: #e7b8b5;
+  color: #8b302b;
+  background: #fff8f7;
+}
+
+.deleteButton.deleteButton:hover:not(:disabled) {
+  border-color: #cf7e78;
+  background: #ffefed;
+}
+
+.actionError,
+.actionNotice {
+  margin: 0 0 14px;
+  padding: 12px 15px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.actionError {
+  border-color: #e6b9b5;
+  color: #742e28;
+  background: #fff4f2;
+}
+
+.actionNotice {
+  border-color: #b6d9bd;
+  color: #286541;
+  background: #f0faf2;
+}
 
 .emptyState {
   display: grid;
@@ -263,10 +333,14 @@
   .main { padding: 0 18px 20px; }
   .topbar { min-height: 62px; }
   .heading { align-items: start; flex-direction: column; margin: 28px 0 22px; }
+  .headingActions { width: 100%; }
+  .headingActions > button { flex: 1; }
 }
 
 @media (max-width: 520px) {
   .projectGrid { grid-template-columns: 1fr; }
+  .cardActions { display: grid; grid-template-columns: 1fr; }
+  .cardActions > button { width: 100%; }
   .resultsHeader,
   .error,
   .footer { align-items: start; flex-direction: column; }

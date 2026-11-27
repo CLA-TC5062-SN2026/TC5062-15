@@ -1,35 +1,39 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "../components/Button.jsx";
 import Card from "../components/Card.jsx";
 import FeatureCard from "../components/FeatureCard.jsx";
 import InputField from "../components/InputField.jsx";
 import Navbar from "../components/Navbar.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
-import { API_BASE_URL } from "../services/apiClient.js";
+import { API_BASE_URL, getApiErrorMessage } from "../services/apiClient.js";
+import { projectsService } from "../services/projectsService.js";
 import styles from "./DashboardPage.module.css";
 
 const features = [
   {
     number: "01",
     title: "Proyectos",
-    description: "Organiza trabajos musicales y parámetros de procesamiento.",
-    status: "Disponible",
+    description: "Crea, consulta, edita, archiva y elimina proyectos.",
+    status: "Integrado",
   },
   {
     number: "02",
     title: "Audio",
-    description: "Carga y valida archivos MP3 o WAV.",
+    description: "Carga MP3 o WAV y sigue el procesamiento.",
+    status: "Integrado",
   },
   {
     id: "transcripcion",
     number: "03",
     title: "Transcripción",
-    description: "Revisa notas, indicadores de confianza y correcciones.",
+    description: "Visualiza la partitura y guarda correcciones por versión.",
+    status: "Integrado",
   },
   {
     number: "04",
     title: "Exportaciones",
-    description: "Prepara partituras en formato MIDI o PDF.",
+    description: "Genera y descarga archivos MIDI y PDF.",
+    status: "Integrado",
   },
 ];
 
@@ -39,13 +43,31 @@ const navigationItems = [
   { href: "#transcripcion", label: "Transcripciones", icon: "♫" },
 ];
 
-export default function DashboardPage({ navigate }) {
+export default function DashboardPage({ navigate, onLogout }) {
   const { user, isAuthenticated } = useAuth();
   const [projectName, setProjectName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const saveTimer = useRef(null);
+  const [projects, setProjects] = useState([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState("");
+
+  const loadProjects = useCallback(async () => {
+    setIsLoadingProjects(true);
+    setProjectsError("");
+    try {
+      const response = await projectsService.list();
+      setProjects(Array.isArray(response?.items) ? response.items : []);
+    } catch (error) {
+      setProjectsError(getApiErrorMessage(error));
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  }, []);
+
+  useEffect(() => { loadProjects(); }, [loadProjects]);
 
   useEffect(() => () => window.clearTimeout(saveTimer.current), []);
 
@@ -82,9 +104,9 @@ export default function DashboardPage({ navigate }) {
           items={navigationItems}
           activeHref="/dashboard"
           onNavigate={navigate}
+          onLogout={onLogout}
           isAuthenticated={isAuthenticated}
           userName={user?.name || user?.email || "Usuario"}
-          showAccountAction={false}
         />
       </aside>
 
@@ -97,14 +119,16 @@ export default function DashboardPage({ navigate }) {
         <div className={styles.content}>
           <section className={styles.hero}>
             <div className={styles.heroCopy}>
-              <p className={styles.eyebrow}>AUDIO2SCORE <span>·</span> CONSTRUCCIÓN DEL FRONTEND</p>
-              <h1>La base para darle forma a tu música.</h1>
+              <p className={styles.eyebrow}>AUDIO2SCORE <span>·</span> ESPACIO DE TRABAJO</p>
+              <h1>Convierte tus grabaciones en partituras revisables.</h1>
               <p className={styles.heroText}>
-                El scaffolding inicial está listo. Aquí crecerán los flujos para cargar
-                audio, revisar transcripciones y preparar exportaciones.
+                Organiza proyectos, procesa audio MP3 o WAV, corrige las notas detectadas y exporta el resultado.
               </p>
               <div className={styles.tags}>
                 <span>React</span><span>Vite</span><span>CSS Modules</span>
+              </div>
+              <div className={styles.heroActions}>
+                <Button onClick={() => navigate("/projects")}>Gestionar proyectos</Button>
               </div>
             </div>
             <div className={styles.art} aria-hidden="true">
@@ -118,13 +142,43 @@ export default function DashboardPage({ navigate }) {
             </div>
           </section>
 
+          <section className={styles.section} aria-labelledby="workspace-title">
+            <div className={styles.sectionHeader}>
+              <div><p className={styles.sectionEyebrow}>DATOS DE TU CUENTA</p><h2 id="workspace-title">Actividad del espacio</h2></div>
+              <Button variant="secondary" onClick={loadProjects} disabled={isLoadingProjects}>Actualizar</Button>
+            </div>
+            {isLoadingProjects && <p className={styles.summaryLoading} role="status">Cargando el resumen desde el backend…</p>}
+            {!isLoadingProjects && projectsError && <div className={styles.summaryError} role="alert"><span>{projectsError}</span><Button variant="secondary" onClick={loadProjects}>Reintentar</Button></div>}
+            {!isLoadingProjects && !projectsError && (
+              <>
+                <div className={styles.summaryGrid}>
+                  <Card className={styles.summaryCard}><span>Proyectos activos</span><strong>{projects.filter((project) => !project.archivedAt).length}</strong></Card>
+                  <Card className={styles.summaryCard}><span>En procesamiento</span><strong>{projects.filter((project) => ["pendiente", "procesando"].includes(project.status)).length}</strong></Card>
+                  <Card className={styles.summaryCard}><span>Con transcripción</span><strong>{projects.filter((project) => Boolean(project.currentTranscriptionId)).length}</strong></Card>
+                </div>
+                <div className={styles.recentHeader}><h3>Proyectos recientes</h3><Button variant="secondary" onClick={() => navigate("/projects")}>Ver todos</Button></div>
+                {projects.length === 0 ? <Card className={styles.emptySummary}><p>Aún no tienes proyectos. Crea uno para comenzar a cargar audio.</p><Button onClick={() => navigate("/projects")}>Crear proyecto</Button></Card> : (
+                  <div className={styles.recentGrid}>
+                    {projects.slice(0, 3).map((project) => (
+                      <Card key={project.id} className={styles.recentCard}>
+                        <div><strong>{project.name}</strong><span>{project.archivedAt ? "Archivado" : project.status}</span></div>
+                        <p>{project.description || "Sin descripción."}</p>
+                        <Button variant="secondary" onClick={() => navigate(`/projects/${encodeURIComponent(project.id)}`)}>Abrir</Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+
           <section className={styles.section} id="proyectos">
             <div className={styles.sectionHeader}>
               <div>
                 <p className={styles.sectionEyebrow}>MÓDULOS DEL PROYECTO</p>
                 <h2>Flujos principales</h2>
               </div>
-              <span className={styles.hint}>Estructura preparada para conectar</span>
+              <span className={styles.hint}>Integrados con la API del proyecto</span>
             </div>
             <div className={styles.grid}>
               {features.map((feature) => (
@@ -196,8 +250,8 @@ export default function DashboardPage({ navigate }) {
           </section>
 
           <footer className={styles.footer}>
-            <span>Audio2Score · Scaffolding inicial</span>
-            <span>Base para integración por etapas</span>
+            <span>Audio2Score · Panel de trabajo</span>
+            <span>Resumen conectado al backend</span>
           </footer>
         </div>
       </main>

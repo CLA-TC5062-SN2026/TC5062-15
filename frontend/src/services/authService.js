@@ -29,8 +29,10 @@ export const authService = {
   },
 
   async logout() {
+    const logoutRequest = apiRequest("/auth/logout", { method: "POST" });
+    clearAccessToken();
     try {
-      return await apiRequest("/auth/logout", { method: "POST" });
+      return await logoutRequest;
     } finally {
       clearAccessToken();
     }
