@@ -16,4 +16,11 @@ export const audioFilesService = {
       `/projects/${encodeURIComponent(projectId)}/audio-files/${encodeURIComponent(audioFileId)}`,
     );
   },
+
+  download(projectId, audioFileId) {
+    return apiRequest(
+      `/projects/${encodeURIComponent(projectId)}/audio-files/${encodeURIComponent(audioFileId)}/file`,
+      { responseType: "blob" },
+    );
+  },
 };

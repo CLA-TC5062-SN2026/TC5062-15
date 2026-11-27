@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "lint": "eslint src"
   },
   "engines": {
     "node": ">=20"
@@ -18,5 +19,10 @@
     "multer": "^2.5.0",
     "music-metadata": "^12.3.0",
     "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0"
   }
 }

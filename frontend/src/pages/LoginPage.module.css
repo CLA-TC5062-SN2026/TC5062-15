@@ -97,11 +97,48 @@
 }
 
 .footer {
-  margin: 24px 0 0;
+  margin: 20px 0 0;
   color: #66738c;
   font-size: 11px;
   line-height: 1.5;
   text-align: center;
+}
+
+.sessionNote {
+  margin: 12px 0 0;
+  color: #66738c;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.textLink {
+  padding: 0;
+  border: 0;
+  color: #355a9a;
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.textLink:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid #243d70;
+  outline-offset: 3px;
+}
+
+.success {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid #b9dfb0;
+  border-radius: 10px;
+  color: #285b35;
+  background: #f4fff1;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 @media (max-width: 420px) {

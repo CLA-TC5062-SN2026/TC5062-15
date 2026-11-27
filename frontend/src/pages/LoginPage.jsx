@@ -85,7 +85,13 @@ export default function LoginPage({ navigate, onLoginSuccess }) {
           </Button>
         </form>
 
-        <p className={styles.footer}>Tu sesión se mantiene en memoria mientras esta pestaña está abierta.</p>
+        <p className={styles.footer}>
+          ¿No tienes una cuenta?{" "}
+          <button className={styles.textLink} type="button" onClick={() => navigate("/register")}>
+            Crear cuenta
+          </button>
+        </p>
+        <p className={styles.sessionNote}>Tu sesión se conserva en esta pestaña y se valida al volver a cargar.</p>
       </section>
     </main>
   );

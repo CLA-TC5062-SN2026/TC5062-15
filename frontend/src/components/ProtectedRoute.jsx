@@ -2,14 +2,17 @@ import { useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function ProtectedRoute({ children, navigate }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isRestoring } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isRestoring && !isAuthenticated) {
       navigate("/login", { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, isRestoring, navigate]);
 
+  if (isRestoring) {
+    return <main role="status" aria-live="polite" style={{ padding: "2rem", color: "#34425e" }}>Restaurando la sesión…</main>;
+  }
   if (!isAuthenticated) return null;
   return children;
 }

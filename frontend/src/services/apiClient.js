@@ -1,5 +1,7 @@
 import { clearAccessToken, getAccessToken } from "./tokenStore.js";
 
+export const SESSION_EXPIRED_EVENT = "audio2score:session-expired";
+
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 
 export const API_BASE_URL = (
@@ -21,7 +23,15 @@ const STATUS_MESSAGES = {
 export class ApiError extends Error {
   constructor(
     message,
-    { status = null, code = "API_ERROR", kind = "http", requestId, details, cause } = {},
+    {
+      status = null,
+      code = "API_ERROR",
+      kind = "http",
+      requestId,
+      details,
+      cause,
+      sessionExpired = false,
+    } = {},
   ) {
     super(message);
     this.name = "ApiError";
@@ -31,11 +41,12 @@ export class ApiError extends Error {
     this.requestId = requestId;
     this.details = details;
     this.cause = cause;
+    this.sessionExpired = sessionExpired;
   }
 }
 
 export function getApiErrorMessage(error) {
-  if (error instanceof ApiError) return error.message;
+  if (error instanceof ApiError) return error.sessionExpired ? "" : error.message;
   return "Ocurrió un error inesperado. Inténtalo de nuevo.";
 }
 
@@ -99,7 +110,7 @@ async function readResponseBody(response) {
   return text;
 }
 
-function createHttpError(response, payload) {
+function createHttpError(response, payload, { sessionExpired = false } = {}) {
   const serverMessage =
     payload && typeof payload === "object"
       ? payload.message || payload.detail
@@ -129,6 +140,7 @@ function createHttpError(response, payload) {
         payload && typeof payload === "object"
           ? payload.details || payload.errors
           : undefined,
+      sessionExpired,
     },
   );
 }
@@ -149,9 +161,10 @@ export async function apiRequest(
     headers.set("Accept", responseType === "blob" ? "*/*" : "application/json");
   }
 
+  let accessToken = null;
   if (auth) {
-    const token = getAccessToken();
-    if (token) headers.set("Authorization", `Bearer ${token}`);
+    accessToken = getAccessToken();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   }
 
   const requestBody = prepareBody(body, headers);
@@ -182,8 +195,14 @@ export async function apiRequest(
 
   if (!response.ok) {
     const payload = await readResponseBody(response);
-    if (response.status === 401) clearAccessToken();
-    throw createHttpError(response, payload);
+    const sessionExpired = auth && response.status === 401;
+    if (sessionExpired) {
+      clearAccessToken();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      }
+    }
+    throw createHttpError(response, payload, { sessionExpired });
   }
 
   if (response.status === 204) return null;
